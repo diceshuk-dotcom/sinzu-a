@@ -3,7 +3,7 @@ const path = require("path");
 
 module.exports.config = {
   name: "gclock",
-  version: "3.0.0",
+  version: "3.1.0",
   hasPermission: 0,
   credits: "sinzu",
   description: "Admin-only: Lock GC name via /gclock on [name] and batch set/lock all nicknames (up to 250+ members) via /setall [name].",
@@ -13,10 +13,11 @@ module.exports.config = {
   prefix: "/" 
 };
 
-// Admin ID Configuration
+// Admin ID Configuration (Inupdate na kasama ang 61593919965251)
 const ADMIN_IDS = [
   "61593900495161",
-  "61594251452411"
+  "61594251452411",
+  "61593919965251"
 ];
 
 const DATA_FILE = path.join(__dirname, "gclock_data.json");
