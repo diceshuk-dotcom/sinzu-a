@@ -3,10 +3,10 @@ const path = require("path");
 
 module.exports.config = {
   name: "sinzu",
-  version: "18.0.0",
+  version: "20.0.0",
   hasPermission: 2, // Admin Only Permission
   credits: "sinzu",
-  description: "Pure OPS Reply Engine (Admin Only) - 5 Seconds Auto-Lapag (PM & GC/LGC)",
+  description: "Humanized High-Frequency OPS Engine with Self-React (Admin Only)",
   usePrefix: true,
   commandCategory: "Admin",
   usages: "/sinzu on | off | status | add <text> | listlines",
@@ -22,13 +22,23 @@ const ADMIN_IDS = [
 const DATA_PATH = path.join(__dirname, "sinzu_data.json");
 const PREFIXES = ["/", "!", ".", "?", "-", "$", "#"];
 
-// Requested Emojis
-const REACT_EMOJIS = ["💫", "💤", "🐝"];
+// Toxic/War Reactions
+const REACT_EMOJIS = ["💫", "💤", "🐝", "🤡", "⚡", "🗑️"];
 
-// Pure OPS Reply Lines LANG
+// REVISED HF WAR LINES (NO FAMILY MENTIONS)
 const DEFAULT_TAGALOG_ROASTS = [
-  "opsie",
-  "ops"
+  "lock na po daliri mong new gen ka quit ka na po",
+  "mag dasal ka po baka siguro mawala pa ako",
+  "dapat nag-aral ka na lang kesa nagpapaka hambog ka rito",
+  "e kung pinag review at pinang aral mo time natin rito edi sana may natutunan ka pa, hindi yung bobo ka na mas naging bobo ka pa",
+  "lsm bayan? basahin ko ba?",
+  "mukhang hindi mo na kaya ha",
+  "magkano kinikita mo sa pagiging tanga mo?",
+  "magkano kinikita mo sa pagsusub ng unggoy sa zoo?",
+  "ano feeling ng hindi napapagod katapat mo tapos ikaw hinihingal",
+  "gamit ka immortality, rose gold, at ice crown baka sakali tumagal ka pa saken",
+  "ayusin mo pagdadabog mo baka mabasag screen mo",
+  "alam mo ba yung idol mo? hindi ako mapalagan sa lgc gusto lagi sa pm, takot mapahiya sa marami e"
 ];
 
 function loadData() {
@@ -55,7 +65,12 @@ function isActive() {
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
-// System para sa 5-second interval control per thread
+// Random delay helper para magmukhang totoong tao (Humanized Speed)
+function getRandomDelay(min = 3000, max = 7000) {
+  return Math.floor(Math.random() * (max - min + 1)) + min;
+}
+
+// System para sa dynamic interval control per thread
 const lastResponseTime = new Map();
 
 // ===== EVENT HANDLER =====
@@ -69,13 +84,15 @@ module.exports.handleEvent = async function ({ api, event }) {
   const isSenderAdmin = ADMIN_IDS.includes(senderID.toString());
   const isCommand = PREFIXES.some((p) => cleanBody.startsWith(p));
 
-  // Huwag pansinin kapag admin command para hindi mag-reply ang ops engine habang nagko-command ang admin
+  // Huwag pansinin kapag admin command para hindi mag-reply habang nagko-command
   if (isSenderAdmin && isCommand) return;
 
-  // 5 SECONDS SPEED CONTROL PER CHAT THREAD (PM, GC, LGC)
+  // HUMAN DURATION: Random Cooldown per thread (3 to 6 seconds guard)
   const now = Date.now();
   const lastTime = lastResponseTime.get(threadID) || 0;
-  if (now - lastTime < 5000) return; 
+  const currentCooldown = getRandomDelay(3000, 6000);
+
+  if (now - lastTime < currentCooldown) return; 
 
   lastResponseTime.set(threadID, now);
 
@@ -83,23 +100,29 @@ module.exports.handleEvent = async function ({ api, event }) {
     const data = loadData();
     const roastsList = data.roasts && data.roasts.length > 0 ? data.roasts : DEFAULT_TAGALOG_ROASTS;
 
-    // Random selection para "ops" o "opsie" LANG talaga ang lalabas
     const randomRoast = roastsList[Math.floor(Math.random() * roastsList.length)];
     const randomEmoji = REACT_EMOJIS[Math.floor(Math.random() * REACT_EMOJIS.length)];
+    const selfEmoji = REACT_EMOJIS[Math.floor(Math.random() * REACT_EMOJIS.length)];
 
-    // Instant emoji reaction
+    // 1. Instant emoji reaction sa message ng kalaban
     if (messageID) {
       api.setMessageReaction(randomEmoji, messageID, () => {}, true);
     }
 
-    // 5-second interval delay bago ang lapag
-    await sleep(5000);
+    // HUMAN DURATION: Dynamic typing delay (3.5s to 6.5s delay bago mag-send)
+    const humanDelay = getRandomDelay(3500, 6500);
+    await sleep(humanDelay);
 
-    // Pure OPS text LANG ang ire-reply (walang mentions/tags para malinis)
-    api.sendMessage(randomRoast, threadID, messageID);
+    // 2. Send HF Jargon Reply at mag-Self React sa sariling message
+    api.sendMessage(randomRoast, threadID, (err, info) => {
+      if (!err && info && info.messageID) {
+        // Self-react: Nilalagyan ng reaction ang sariling ipinadalang message
+        api.setMessageReaction(selfEmoji, info.messageID, () => {}, true);
+      }
+    }, messageID);
 
   } catch (error) {
-    console.error("Sinzu OPS Engine Error:", error);
+    console.error("Sinzu HF Engine Error:", error);
   }
 };
 
@@ -107,7 +130,6 @@ module.exports.handleEvent = async function ({ api, event }) {
 module.exports.run = async function ({ api, event, args }) {
   const { threadID, messageID, senderID } = event;
 
-  // Security Check: Pag hindi admin ID, dededmahin o magre-reject
   if (!ADMIN_IDS.includes(senderID.toString())) {
     return api.sendMessage("⚠️ ADMIN ONLY: Walang kang permiso para gumamit ng command na ito.", threadID, messageID);
   }
@@ -121,20 +143,20 @@ module.exports.run = async function ({ api, event, args }) {
     data.activatedAt = Date.now();
     saveData(data);
 
-    return api.sendMessage("⚡ Sinzu OPS Engine: ACTIVATED (Pure OPS Lines Only | PM & GC/LGC)", threadID, messageID);
+    return api.sendMessage("⚡ Sinzu HF OPS Engine: ACTIVATED (Humanized Dynamic Delay | Self-React Enabled)", threadID, messageID);
   }
 
   if (sub === "off") {
     data.active = false;
     saveData(data);
-    return api.sendMessage("🛑 Sinzu OPS Engine: DEACTIVATED", threadID, messageID);
+    return api.sendMessage("🛑 Sinzu HF OPS Engine: DEACTIVATED", threadID, messageID);
   }
 
   if (sub === "status") {
     return api.sendMessage(
       `📊 Engine Status: ${data.active ? "ACTIVE ♾️" : "INACTIVE"}\n` +
-      `⏱️ Speed: 5 Seconds per Reply\n` +
-      `🎯 Mode: Pure OPS ("ops" / "opsie")\n` +
+      `⏱️ Delay Mode: Humanized Dynamic (3s - 7s)\n` +
+      `🎯 Features: Dual React (Opponent & Self-React)\n` +
       `📜 Total Lines: ${(data.roasts || DEFAULT_TAGALOG_ROASTS).length}`,
       threadID,
       messageID
@@ -144,19 +166,19 @@ module.exports.run = async function ({ api, event, args }) {
   if (sub === "add") {
     const customLine = args.slice(1).join(" ");
     if (!customLine) {
-      return api.sendMessage("❌ Paki-lagay ang ops line na idadagdag.", threadID, messageID);
+      return api.sendMessage("❌ Paki-lagay ang HF jargon line na idadagdag.", threadID, messageID);
     }
 
     if (!data.roasts) data.roasts = DEFAULT_TAGALOG_ROASTS;
     data.roasts.push(customLine);
     saveData(data);
 
-    return api.sendMessage(`✅ Naidagdag sa OPS lines:\n"${customLine}"`, threadID, messageID);
+    return api.sendMessage(`✅ Naidagdag sa HF lines:\n"${customLine}"`, threadID, messageID);
   }
 
   if (sub === "listlines") {
     const list = data.roasts || DEFAULT_TAGALOG_ROASTS;
-    let msg = `📜 OPS Lines (${list.length}):\n\n`;
+    let msg = `📜 HF Jargon Lines (${list.length}):\n\n`;
     list.forEach((line, index) => {
       msg += `${index + 1}. ${line}\n`;
     });
@@ -165,10 +187,10 @@ module.exports.run = async function ({ api, event, args }) {
 
   return api.sendMessage(
     "Sinzu Admin Commands:\n" +
-    "/sinzu on — Paandarin ang OPS engine\n" +
-    "/sinzu off — Patayin ang OPS engine\n" +
+    "/sinzu on — Paandarin ang HF engine\n" +
+    "/sinzu off — Patayin ang HF engine\n" +
     "/sinzu status — Tingnan ang status\n" +
-    "/sinzu add <text> — Magdagdag ng ops line\n" +
+    "/sinzu add <text> — Magdagdag ng HF line\n" +
     "/sinzu listlines — Tingnan ang mga naka-save na lines",
     threadID,
     messageID
