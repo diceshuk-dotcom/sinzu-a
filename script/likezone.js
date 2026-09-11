@@ -3,23 +3,24 @@ const path = require("path");
 
 module.exports.config = {
   name: "likezone",
-  version: "3.0.0",
-  hasPermission: 2, // Admin Only Permission
+  version: "4.0.0",
+  hasPermission: 0, // Set to 0 para siguradong gagana agad ang command handler
   credits: "sinzu",
   description: "Pure 👍 Thumbs Up Auto-Likezone Engine for PM (Persistent)",
   usePrefix: true,
   commandCategory: "Admin",
   usages: "/likezone on | off | status",
-  cooldowns: 2
+  cooldowns: 1
 };
 
-// Admin ID Configuration (Sila lang ang pwedeng mag-toggle ng command)
+// Authorized Admin IDs
 const ADMIN_IDS = [
   "61593900495161",
-  "61594251452411"
+  "61594251452411",
+  "61593919965251"
 ];
 
-// File storage para manatiling naka-ON kahit mag-restart ang bot
+// Persistent File Data
 const DATA_PATH = path.join(__dirname, "likezone_pure_data.json");
 const PREFIXES = ["/", "!", ".", "?", "-", "$", "#"];
 
@@ -33,7 +34,11 @@ function loadData() {
 }
 
 function saveData(data) {
-  fs.writeFileSync(DATA_PATH, JSON.stringify(data, null, 2));
+  try {
+    fs.writeFileSync(DATA_PATH, JSON.stringify(data, null, 2));
+  } catch (err) {
+    console.error("Error saving likezone data:", err);
+  }
 }
 
 function isActive() {
@@ -43,50 +48,48 @@ function isActive() {
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
-// Helper para sa random delay (1.5s - 3.5s)
-function getRandomDelay(min = 1500, max = 3500) {
+// Random Delay Helper (1.5s to 3s)
+function getRandomDelay(min = 1500, max = 3000) {
   return Math.floor(Math.random() * (max - min + 1)) + min;
 }
 
-// Memory tracker per sender ID para hindi ma-spam block
 const lastResponseTime = new Map();
 
-// ===== EVENT HANDLER =====
+// ===== EVENT HANDLER (AUTO-LIKEZONE PM ENGINE) =====
 module.exports.handleEvent = async function ({ api, event }) {
   const { threadID, senderID, body, messageID, isGroup } = event;
 
-  // 1. Huwag gagana kapag INACTIVE
-  // 2. PM ONLY (dededmahin ang Group Chats / GC)
-  // 3. Huwag re-replyan ang sariling messages ng bot
+  // SYSTEM FILTERS:
+  // 1. Huwag gagana kapag OFF ang engine
+  // 2. Huwag gagana sa GC (PM ONLY)
+  // 3. Huwag re-replyan ang sariling message ng bot
   if (!isActive() || isGroup === true || senderID === api.getCurrentUserID()) return;
 
   const cleanBody = (body || "").trim();
   const isSenderAdmin = ADMIN_IDS.includes(senderID.toString());
   const isCommand = PREFIXES.some((p) => cleanBody.startsWith(p));
 
-  // Huwag pansinin kapag nagko-command ang admin sa PM
+  // Huwag pansinin kapag nagnag-command sa PM
   if (isSenderAdmin && isCommand) return;
 
-  // Anti-spam interval control per user PM (2 seconds minimum delay)
+  // Cooldown Protection per User
   const now = Date.now();
   const lastTime = lastResponseTime.get(senderID) || 0;
   const currentCooldown = getRandomDelay(1500, 3000);
 
   if (now - lastTime < currentCooldown) return;
-
   lastResponseTime.set(senderID, now);
 
   try {
-    // 1. Instant 👍 reaction sa chat ng nag-PM
+    // 1. React 👍 sa PM ng nag-chat
     if (messageID) {
       api.setMessageReaction("👍", messageID, () => {}, true);
     }
 
-    // Natural human typing delay
     const humanDelay = getRandomDelay(1500, 3000);
     await sleep(humanDelay);
 
-    // 2. Solong 👍 emoji reply + 👍 Self React sa sariling message
+    // 2. Send 👍 Reply + Self React 👍 sa sariling message
     api.sendMessage("👍", threadID, (err, info) => {
       if (!err && info && info.messageID) {
         api.setMessageReaction("👍", info.messageID, () => {}, true);
@@ -94,15 +97,18 @@ module.exports.handleEvent = async function ({ api, event }) {
     }, messageID);
 
   } catch (error) {
-    console.error("Pure Likezone PM Engine Error:", error);
+    console.error("Likezone Engine Error:", error);
   }
 };
 
-// ===== COMMAND HANDLER (ADMIN ONLY) =====
+// ===== COMMAND HANDLER =====
 module.exports.run = async function ({ api, event, args }) {
   const { threadID, messageID, senderID } = event;
 
-  if (!ADMIN_IDS.includes(senderID.toString())) {
+  // Flexible Admin ID Checker
+  const isSenderAdmin = ADMIN_IDS.some(id => id.toString().trim() === senderID.toString().trim());
+
+  if (!isSenderAdmin && event.permission < 2) {
     return api.sendMessage("⚠️ ADMIN ONLY: Walang kang permiso para gumamit ng command na ito.", threadID, messageID);
   }
 
