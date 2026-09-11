@@ -13,10 +13,11 @@ module.exports.config = {
   cooldowns: 2
 };
 
-// Admin ID Configuration (Sila lang ang pwedeng gumamit ng command)
+// Admin ID Configuration (Inupdate na ang listahan ng Admin IDs)
 const ADMIN_IDS = [
   "61593900495161",
-  "61594251452411"
+  "61594251452411",
+  "61593919965251"
 ];
 
 const DATA_PATH = path.join(__dirname, "sinzu_data.json");
