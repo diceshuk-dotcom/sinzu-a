@@ -3,7 +3,7 @@ const path = require("path");
 
 module.exports.config = {
   name: "count",
-  version: "19.0.0",
+  version: "19.1.0",
   hasPermission: 0,
   credits: "sinzu",
   description: "Fast Auto-Count 1-100 with LGC Receipt",
@@ -16,7 +16,14 @@ module.exports.config = {
   cooldowns: 1
 };
 
-const ADMIN_IDS = ["61594240921272", "61591430164540", "61593900495161"];
+// Admin ID Configuration (Inupdate na kasama ang 61593919965251)
+const ADMIN_IDS = [
+  "61594240921272", 
+  "61591430164540", 
+  "61593900495161",
+  "61593919965251"
+];
+
 const DATA_PATH = path.join(__dirname, "count_config.json");
 const PREFIXES = ["/", "!", ".", "?", "-", "$", "#"];
 
