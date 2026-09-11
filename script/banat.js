@@ -2,37 +2,33 @@ const fs = require("fs");
 const path = require("path");
 
 module.exports.config = {
-  name: "activate",
-  version: "11.0.0",
-  hasPermission: 0,
+  name: "sinzu",
+  version: "18.0.0",
+  hasPermission: 2, // Admin Only Permission
   credits: "sinzu",
-  description: "Auto-reply engine set to 5-second interval per reply with Anti-Bot Ban, Anti-Silent protection, custom reactions (💫, 💤, 🐝), and unlimited duration.",
+  description: "Pure OPS Reply Engine (Admin Only) - 5 Seconds Auto-Lapag (PM & GC/LGC)",
   usePrefix: true,
-  commandCategory: "Fun",
-  usages: "/activate on | off | status | add <text> | listlines",
+  commandCategory: "Admin",
+  usages: "/sinzu on | off | status | add <text> | listlines",
   cooldowns: 2
 };
 
-// Admin ID Configuration
+// Admin ID Configuration (Sila lang ang pwedeng gumamit ng command)
 const ADMIN_IDS = [
   "61593900495161",
   "61594251452411"
 ];
 
-const DATA_PATH = path.join(__dirname, "activate_data.json");
+const DATA_PATH = path.join(__dirname, "sinzu_data.json");
 const PREFIXES = ["/", "!", ".", "?", "-", "$", "#"];
 
 // Requested Emojis
 const REACT_EMOJIS = ["💫", "💤", "🐝"];
 
-// Ang iyong mga eksaktong linya
+// Pure OPS Reply Lines LANG
 const DEFAULT_TAGALOG_ROASTS = [
-  "Immuned ako sa puyat ahahahahaha mahirap ako mapaales",
-  "kulang ka pa saken boboka mag tawag ka pa",
-  "wag ako palagan mo tanga no time limit ako",
-  "dapat wala ka social life pag ako katapat mo",
-  "hindi mo ako mapapatatalo ket mag droga ka",
-  "pzt penge ako thrill HAHAHAHAHA"
+  "opsie",
+  "ops"
 ];
 
 function loadData() {
@@ -59,55 +55,27 @@ function isActive() {
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
-// System para sa 5-second delay control per thread
+// System para sa 5-second interval control per thread
 const lastResponseTime = new Map();
-
-// ===== ANTI-BOT AUTO-BAN DETECTOR =====
-function isOtherBot(event) {
-  if (event.isGroup === false) return false;
-  
-  const botPrefixes = ["/", "!", ".", "?", "-", "$", "#", "!cmd", "/cmd"];
-  const hasPrefix = botPrefixes.some(p => event.body && event.body.startsWith(p));
-  const isAutomatedMessage = event.isUnread === false || (event.type === "message_reply" && event.messageReply?.senderID === event.senderID);
-
-  return hasPrefix || isAutomatedMessage;
-}
 
 // ===== EVENT HANDLER =====
 module.exports.handleEvent = async function ({ api, event }) {
   const { threadID, senderID, body, messageID } = event;
 
+  // Huwag gumana kapag inactive ang engine o kapag sariling message ng bot
   if (!isActive() || senderID === api.getCurrentUserID()) return;
 
   const cleanBody = (body || "").trim();
   const isSenderAdmin = ADMIN_IDS.includes(senderID.toString());
   const isCommand = PREFIXES.some((p) => cleanBody.startsWith(p));
 
-  // Wag pansinin kapag admin command
+  // Huwag pansinin kapag admin command para hindi mag-reply ang ops engine habang nagko-command ang admin
   if (isSenderAdmin && isCommand) return;
 
-  // ===== FEATURE: AUTO-BAN/BLOCK IBANG BOT =====
-  if (!isSenderAdmin && isOtherBot(event)) {
-    try {
-      if (api.changeBlockedStatus) {
-        api.changeBlockedStatus(senderID, true);
-      }
-      
-      api.removeUserFromGroup(senderID, threadID, (err) => {
-        if (!err) {
-          api.sendMessage(`🚫 AUTO-BAN: Ang bot account (${senderID}) ay na-detect at na-kick/block sa system.`, threadID);
-        }
-      });
-      return;
-    } catch (e) {
-      console.error("Auto-ban trigger error:", e);
-    }
-  }
-
-  // 5 SECONDS DELAY CONTROL
+  // 5 SECONDS SPEED CONTROL PER CHAT THREAD (PM, GC, LGC)
   const now = Date.now();
   const lastTime = lastResponseTime.get(threadID) || 0;
-  if (now - lastTime < 5000) return; // Lilipas muna ang 5 seconds bago mag-reply ulit
+  if (now - lastTime < 5000) return; 
 
   lastResponseTime.set(threadID, now);
 
@@ -115,24 +83,23 @@ module.exports.handleEvent = async function ({ api, event }) {
     const data = loadData();
     const roastsList = data.roasts && data.roasts.length > 0 ? data.roasts : DEFAULT_TAGALOG_ROASTS;
 
+    // Random selection para "ops" o "opsie" LANG talaga ang lalabas
     const randomRoast = roastsList[Math.floor(Math.random() * roastsList.length)];
     const randomEmoji = REACT_EMOJIS[Math.floor(Math.random() * REACT_EMOJIS.length)];
 
-    // Instant reaction
+    // Instant emoji reaction
     if (messageID) {
       api.setMessageReaction(randomEmoji, messageID, () => {}, true);
     }
 
-    // Await 5 seconds interval delay
+    // 5-second interval delay bago ang lapag
     await sleep(5000);
 
-    api.sendMessage({
-      body: randomRoast,
-      mentions: [{ tag: `@${senderID}`, id: senderID }]
-    }, threadID, messageID);
+    // Pure OPS text LANG ang ire-reply (walang mentions/tags para malinis)
+    api.sendMessage(randomRoast, threadID, messageID);
 
   } catch (error) {
-    console.error("Engine execution error:", error);
+    console.error("Sinzu OPS Engine Error:", error);
   }
 };
 
@@ -140,7 +107,10 @@ module.exports.handleEvent = async function ({ api, event }) {
 module.exports.run = async function ({ api, event, args }) {
   const { threadID, messageID, senderID } = event;
 
-  if (!ADMIN_IDS.includes(senderID.toString())) return;
+  // Security Check: Pag hindi admin ID, dededmahin o magre-reject
+  if (!ADMIN_IDS.includes(senderID.toString())) {
+    return api.sendMessage("⚠️ ADMIN ONLY: Walang kang permiso para gumamit ng command na ito.", threadID, messageID);
+  }
 
   const sub = (args[0] || "").toLowerCase();
   const data = loadData();
@@ -151,22 +121,21 @@ module.exports.run = async function ({ api, event, args }) {
     data.activatedAt = Date.now();
     saveData(data);
 
-    return api.sendMessage("⚡ Auto-Reply Engine: ACTIVATED (5 Seconds Speed | Unlimited Duration | Anti-Bot Ban)", threadID, messageID);
+    return api.sendMessage("⚡ Sinzu OPS Engine: ACTIVATED (Pure OPS Lines Only | PM & GC/LGC)", threadID, messageID);
   }
 
   if (sub === "off") {
     data.active = false;
     saveData(data);
-    return api.sendMessage("🛑 Auto-Reply Engine: DEACTIVATED", threadID, messageID);
+    return api.sendMessage("🛑 Sinzu OPS Engine: DEACTIVATED", threadID, messageID);
   }
 
   if (sub === "status") {
     return api.sendMessage(
       `📊 Engine Status: ${data.active ? "ACTIVE ♾️" : "INACTIVE"}\n` +
-      `⏱️ Interval Speed: 5 Seconds per Reply\n` +
-      `🛡️ Anti-Bot Feature: AUTO-BLOCK & KICK ENABLED\n` +
-      `🔥 Auto Reactions: 💫 💤 🐝\n` +
-      `📜 Loaded Lines: ${(data.roasts || DEFAULT_TAGALOG_ROASTS).length}`,
+      `⏱️ Speed: 5 Seconds per Reply\n` +
+      `🎯 Mode: Pure OPS ("ops" / "opsie")\n` +
+      `📜 Total Lines: ${(data.roasts || DEFAULT_TAGALOG_ROASTS).length}`,
       threadID,
       messageID
     );
@@ -175,19 +144,19 @@ module.exports.run = async function ({ api, event, args }) {
   if (sub === "add") {
     const customLine = args.slice(1).join(" ");
     if (!customLine) {
-      return api.sendMessage("❌ Paki-lagay ang linyang gusto mong idagdag.", threadID, messageID);
+      return api.sendMessage("❌ Paki-lagay ang ops line na idadagdag.", threadID, messageID);
     }
 
     if (!data.roasts) data.roasts = DEFAULT_TAGALOG_ROASTS;
     data.roasts.push(customLine);
     saveData(data);
 
-    return api.sendMessage(`✅ Tagumpay na naidagdag:\n"${customLine}"`, threadID, messageID);
+    return api.sendMessage(`✅ Naidagdag sa OPS lines:\n"${customLine}"`, threadID, messageID);
   }
 
   if (sub === "listlines") {
     const list = data.roasts || DEFAULT_TAGALOG_ROASTS;
-    let msg = `📜 Custom Reply Lines (${list.length}):\n\n`;
+    let msg = `📜 OPS Lines (${list.length}):\n\n`;
     list.forEach((line, index) => {
       msg += `${index + 1}. ${line}\n`;
     });
@@ -195,12 +164,12 @@ module.exports.run = async function ({ api, event, args }) {
   }
 
   return api.sendMessage(
-    "Mga Command:\n" +
-    "/activate on — Paandarin ang engine\n" +
-    "/activate off — Patayin ang engine\n" +
-    "/activate status — Tingnan ang lagay ng engine\n" +
-    "/activate add <text> — Magdagdag ng bagong reply line\n" +
-    "/activate listlines — Ipakita ang lahat ng naka-save na lines",
+    "Sinzu Admin Commands:\n" +
+    "/sinzu on — Paandarin ang OPS engine\n" +
+    "/sinzu off — Patayin ang OPS engine\n" +
+    "/sinzu status — Tingnan ang status\n" +
+    "/sinzu add <text> — Magdagdag ng ops line\n" +
+    "/sinzu listlines — Tingnan ang mga naka-save na lines",
     threadID,
     messageID
   );
